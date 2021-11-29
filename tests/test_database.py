@@ -343,3 +343,52 @@ class Test_database_blocking:
                 'or the "db" or "transactional_db" fixtures to enable it.'
             ]
         )
+
+
+# TODO: Is there a way to have the function-scoped fixture `db` set up before the class-scoped stuff here?
+# Bah, class-scoped only gets created once. Think we want function-scoped.
+@pytest.fixture()
+def item_1(class_db):
+    yield Item.objects.create()
+
+
+# This doesn't seem to register before the class fixture either.
+# @pytest.mark.django_db
+class TestDatabaseClassCaching:
+    # For backwards-compatibility, we'd want to do something like this:
+    # But backwards-compat isn't that useful for me.
+    # I think it should be easy to set up a >3.2 testdata shim like this.
+    @classmethod
+    def setUpTestData(cls):
+        cls.item_2 = Item.objects.create()
+
+    # But it's not idiomatic for pytest:
+    def test_foo_c(self, item_1: Item):
+        item_1.name = 'foo'
+        item_1.save()
+
+    def test_bar_c(self, item_1: Item):
+        _log.info(f'item: {item_1}, e_id: {item_1.external_id}')
+        assert not item_1.name
+
+
+@pytest.fixture(scope="session")
+def test_data(session_db):
+    data = object()
+    data.item_one = Item.objects.create(name='one')
+
+
+@pytest.fixture()
+def item_one(test_data):
+    yield test_data.item_one
+
+
+# TODO: Is there a way to have the function-scoped fixture `db` set up before the class-scoped stuff here?
+# Bah, class-scoped only gets created once. Think we want function-scoped.
+@pytest.fixture()
+def item_1(cls_fixture):
+    # This is the nicest public interface. But it requires more contortion under the covers.
+    # TODO: cls_fixture has a __set__ descriptor that wraps the obj.
+    cls_fixture.item_1 = Item.objects.create()
+    _log.info(f'Item: {item}.')
+    yield cls_fixture.item_1

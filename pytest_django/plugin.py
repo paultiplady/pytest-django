@@ -16,6 +16,7 @@ import pytest
 
 from .django_compat import is_django_unittest  # noqa
 from .fixtures import _django_db_helper  # noqa
+from .fixtures import _django_db_helper_class  # noqa
 from .fixtures import _live_server_helper  # noqa
 from .fixtures import admin_client  # noqa
 from .fixtures import admin_user  # noqa
@@ -23,6 +24,8 @@ from .fixtures import async_client  # noqa
 from .fixtures import async_rf  # noqa
 from .fixtures import client  # noqa
 from .fixtures import db  # noqa
+from .fixtures import class_db  # noqa
+from .fixtures import session_db  # noqa
 from .fixtures import django_assert_max_num_queries  # noqa
 from .fixtures import django_assert_num_queries  # noqa
 from .fixtures import django_capture_on_commit_callbacks  # noqa

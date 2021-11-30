@@ -144,6 +144,26 @@ def _django_db_helper(
     django_db_setup: None,
     django_db_blocker,
 ) -> None:
+    _django_db_helper_impl(request, django_db_setup, django_db_blocker, _cls_fixtures,)
+
+
+# This approach doesn't work -- it's going to set the finalizer at the class level?
+# @pytest.fixture(scope="class")
+# def _django_db_helper_class(
+#     request,
+#     django_db_setup: None,
+#     django_db_blocker,
+# ) -> None:
+#     _django_db_helper_impl(request, django_db_setup, django_db_blocker, _cls_fixtures)
+
+
+# Not a fixture, to allow composition in both class-scoped and function-scoped.
+def _django_db_helper_impl(
+    request,
+    django_db_setup: None,
+    django_db_blocker,
+    _cls_fixture,
+) -> None:
     from django import VERSION
 
     if is_django_unittest(request):
@@ -182,6 +202,21 @@ def _django_db_helper(
         if _databases is not None:
             databases = _databases
 
+    if VERSION >= (3, 2):
+        def setUpTestData(cls):
+            for name, obj in cls_fixture:
+                setattr(cls, name, obj)
+        PytestDjangoTestCase.setUpTestData = setUpTestData
+    else:
+        # Pre-3.2 compat shim, based on https://github.com/charettes/django-testdata/blob/master/testdata/decorators.py
+        if _cls_fixture:
+            try:
+                from testdata import testdata
+                for attr, obj in _cls_fixture.__dict__.items():
+                    setattr(cls, attr, testdata(obj))
+
+            except ImportError:
+                print('Shim required to use _cls_fixtures.')
     PytestDjangoTestCase.setUpClass()
     if VERSION >= (4, 0):
         request.addfinalizer(PytestDjangoTestCase.doClassCleanups)
@@ -269,6 +304,40 @@ def db(_django_db_helper: None) -> None:
     ``transactional_db`` takes precedence.
     """
     # The `_django_db_helper` fixture checks if `db` is requested.
+
+
+@pytest.fixture(scope="class")
+def class_db(_django_db_helper: None) -> None:
+    """Require a django test database.
+
+    This database will be setup with the default fixtures and will have
+    the transaction management disabled. At the end of the test the outer
+    transaction that wraps the test itself will be rolled back to undo any
+    changes to the database (in case the backend supports transactions).
+    This is more limited than the ``transactional_db`` fixture but
+    faster.
+
+    If both ``db`` and ``transactional_db`` are requested,
+    ``transactional_db`` takes precedence.
+    """
+    # The `_django_db_helper` fixture checks if `db` is requested.
+
+
+@pytest.fixture(scope="session")
+def session_db(_django_db_helper: None) -> None:
+    """Require a django test database.
+
+    This database will be setup with the default fixtures and will have
+    the transaction management disabled. At the end of the test the outer
+    transaction that wraps the test itself will be rolled back to undo any
+    changes to the database (in case the backend supports transactions).
+    This is more limited than the ``transactional_db`` fixture but
+    faster.
+
+    If both ``db`` and ``transactional_db`` are requested,
+    ``transactional_db`` takes precedence.
+    """
+    # The `_django_db_helper` fixture checks if `db` is requested.# @pytest.fixture(scope="session")
 
 
 @pytest.fixture(scope="function")
